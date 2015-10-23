@@ -1,0 +1,264 @@
+#!/bin/sh
+
+# Author: Andrew
+# Date: 2015-10-23
+
+adb="./bin/adb"
+fastboot="./bin/fastboot"
+twrp="./package/recovery-twrp-beautify.img"
+h2os="./package/recovery-h2os.img"
+gapps="./package/gapps-5.1-arm64-2015-07-17-15-08(CM).zip"
+supersu='./package/UPDATE-SuperSU-v2.46.zip'
+title="OnePlus2 Tools For OSX"
+
+
+
+function main {
+  while true
+  do
+    set_title
+    show_menu
+    read_choice
+  done
+}
+
+function set_title {
+  clear
+  echo '\033k'$title'\033\\'
+}
+function show_menu {
+  clear
+  echo '一加2工具箱(OSX版) by Andrew'
+  echo
+  echo '==========================================='
+  echo
+  echo '请输入数字选择你需要的操作:'
+  echo
+  echo '1.查询解锁状态'
+  echo
+  echo '2.解锁'
+  echo
+  echo '3.刷入OnePlus2 twrp 第三方Recovery'
+  echo
+  echo '4.刷入OnePlus2原版Recovery'
+  echo
+  echo '5.刷入SuperSU取得ROOT'
+  echo
+  echo '6.刷入Android5.1谷歌框架及应用'
+  echo
+  echo '7.刷入其他Zip(系统全量包、OTA增量包等).'
+  echo
+  echo '============================================'
+  echo
+}
+function read_choice {
+  read choice
+  case $choice in
+    1)
+    check_lock_status
+    ;;
+    2)
+    unlock_device
+    ;;
+    3)
+    flash_rec $twrp
+    ;;
+    4)
+    flash_rec $h2os
+    ;;
+    5)
+    flash_zip $supersu
+    ;;
+    6)
+    flash_zip $gapps
+    ;;
+    7)
+    echo "请将需要刷入的包放入本脚本同目录下, 并重命名为update.zip."
+    echo "按下回车键继续..."
+    read pause > /dev/null 2>&1
+    flash_zip "update.zip"
+    *)
+    echo "请输入正确的数字进行选择"
+    sleep 3
+    show_menu
+    ;;
+  esac
+}
+
+# function check_device_connect:
+# return 0: oneplus2 connected.
+# return 255: no device connected.
+# return 254: no oneplus2 connected.
+function check_device_connect {
+  $adb shell echo > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "设备连接成功."
+    device=$($adb devices -l | tail -2 | head -1 | awk -F "device:" '{print $2}')
+    if [ $device = "OnePlus2" ]; then
+      echo "设备已识别为一加2."
+      return 0
+    else
+      echo "您的设备是: $device ."
+      echo "设备不是一加2手机, 请确认后重试."
+      return 254
+    fi
+  else
+    echo "设备连接失败, 请确保:"
+    echo "(1)设备已开启USB调试模式;"
+    echo "(2)电脑已正确安装设备驱动;"
+    echo "(3)设备在开机状态;"
+    echo "(4)设备已通过USB线连接电脑."
+    echo "按回车键返回主菜单..."
+    read pause > /dev/null 2>&1
+    return 255
+  fi
+}
+
+# function fash_rec:
+# exit 0: excute success;
+# return 254/255: excute fails.
+function flash_rec {
+  clear
+  echo "请确认已经将设备bootloader解锁，否则无法刷入第三方Recovery."
+  echo "输入'Y'确认已经将设备解锁, 输入其他字符返回主菜单..."
+  read pause
+  if [ "$pause" != "Y" ]; then
+    return 255
+  fi
+  check_device_connect
+  #if $?==0, oneplus2 connected.
+  if [ $? -eq 0 ]; then
+    echo "设备将重启至Fastboot模式, 期间请不要做其他操作."
+    echo "按下回车键开始..."
+    read pause > /dev/null 2>&1
+    $adb reboot bootloader > /dev/null 2>&1
+    sleep 6 # waiting for device goto Fastboot Mode
+    fastboot_device=$($fastboot devices)
+    if [ -n "$fastboot_device" ]; then
+      echo "设备已重启到Fastboot模式."
+      echo "按下回车键刷入recovery: $1"
+      read pause
+      echo "正在刷入recovery: $1, 请稍等..."
+      $fastboot flash recovery $1
+      sleep 5 #waiting for device to flash rec
+      echo "如看到OKAY字样说明已经刷入."
+      echo "按回车键退出程序并启动到Recovery..."
+      read pause
+      $fastboot boot $1 > /dev/null 2>&1
+      sleep 5 #waiting for device boot into rec
+      exit 0
+    else
+      echo "没有检测到已经进入到Fastboot的设备, 请检查设备是否正确连接."
+      echo "按回车键返回主菜单..."
+      read pause
+      return 254
+    fi
+  else
+    # no oneplus2 connected/no device connected, continue main loop
+    return 255
+  fi
+}
+
+function flash_zip {
+  echo "请确认您的设备已刷入第三方Recovery. 官方Recovery不支持刷入非官方zip包."
+  echo "您的设备将重启至Recovery. 按下回车键继续..."
+  read pause > /dev/null 2>&1
+  echo "正在重启到Recovery, 请稍候..."
+  $adb reboot recovery > /dev/null 2>&1
+  sleep 10
+  echo "进入Recovery后, 进入[高级-ADB Sideload]选项."
+  echo "勾选[清除Dalvik缓存]及[清除Cache分区], 并滑动开启Sideload"
+  echo "将刷入$1包, 按回车键确认..."
+  read pause > /dev/null 2>&1
+  $adb sideload $1
+  echo "zip包已成功刷入, 重启设备请按回车键..."
+  read pause > /dev/null 2>&1
+  $adb reboot
+  return 0
+}
+
+function check_lock_status {
+  clear
+  check_device_connect
+
+  #if any device connected:
+  if [ $? -eq 0 ] || [ $? -eq 254 ]; then
+    echo "设备将重启至Fastboot模式, 期间请不要做其他操作."
+    echo "按下回车键开始..."
+    read pause > /dev/null 2>&1
+    $adb reboot bootloader > /dev/null 2>&1
+    sleep 6 #waiting for device goto Fastboot Mode.
+    fastboot_device=$($fastboot devices)
+    if [ -n "$fastboot_device" ]; then
+      echo "设备已重启到Fastboot模式."
+      echo "检查设备BootLoader锁状态..."
+      lock_status=$($fastboot oem device-info 2>&1 >/dev/null | grep 'Device unlocked' | awk -F ': ' '{print $2}')
+      if [ "$lock_status" = "true" ]; then
+        echo "您的设备BootLoader已处于解锁状态, 可以刷入第三方Recovery."
+        echo "现在重启设备..."
+        $fastboot reboot > /dev/null 2>&1
+        echo "按下回车键返回主菜单..."
+        read pause > /dev/null 2>&1
+        return 0;
+      elif [ "$lock_status" = "false" ]; then
+        echo "您的设备BootLoader处于锁定状态, 无法刷入第三方Recovery."
+        return 1;
+      fi
+    else
+      echo "没有检测到已经进入到Fastboot的设备, 请检查设备是否正确连接."
+      echo "按回车键返回主菜单..."
+      read pause
+      return 254
+    fi
+  else
+    #no device connected
+    return 255
+  fi
+}
+
+function unlock_device {
+  clear
+  check_device_connect
+
+  #if any device connected:
+  if [ $? -eq 0 ] || [ $? -eq 254 ]; then
+    echo "警告:解锁BootLoader将会清除设备上的所有的资料, 请将重要数据备份到电脑上!!"
+    echo "请确认[手机设置-高级设置-开发者选项-OEM解锁]已打开, 否则无法解锁."
+    echo "设备将重启至Fastboot模式, 期间请不要做其他操作."
+    echo "数据备份完毕并确认OEM解锁选项已打开后, 按下回车键开始..."
+    read pause > /dev/null 2>&1
+    $adb reboot bootloader > /dev/null 2>&1
+    sleep 6 #waiting for device goto Fastboot Mode.
+    fastboot_device=$($fastboot devices)
+    if [ -n "$fastboot_device" ]; then
+      echo "设备已重启到Fastboot模式."
+      echo "警告:解锁BootLoader将会清除设备上的所有的资料, 请将重要数据备份到电脑上!!"
+      echo "数据备份完毕后, 输入'Y'开始解锁, 输入其他字符重启设备并返回到主菜单..."
+      read pause
+      if [ "$pause" = "Y" ]; then
+        #unlock device
+        $fastboot oem unlock
+        sleep 3
+        echo "已经完成解锁!"
+        echo "请不要轻易重新上锁!"
+        echo "按回车键返回主菜单..."
+        read pause
+        return 0
+      else
+        #reboot device
+        $fastboot reboot > /dev/null 2>&1
+        return 255
+      fi
+    else
+      echo "没有检测到已经进入到Fastboot的设备, 请检查设备是否正确连接."
+      echo "按回车键返回主菜单..."
+      read pause
+      return 254
+    fi
+  else
+    #no device connected
+    return 255
+  fi
+}
+
+main
