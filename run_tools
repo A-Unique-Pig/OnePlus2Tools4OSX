@@ -34,8 +34,6 @@ function show_menu {
   echo
   echo '请输入数字选择你需要的操作:'
   echo
-  echo '0.退出程序'
-  echo
   echo '1.查询解锁状态'
   echo
   echo '2.解锁'
@@ -48,7 +46,7 @@ function show_menu {
   echo
   echo '6.刷入Android5.1谷歌框架及应用'
   echo
-  echo '7.刷入其他Zip(系统全量包、OTA增量包等).'
+  echo '0.退出程序.'
   echo
   echo '============================================'
   echo
@@ -73,12 +71,6 @@ function read_choice {
     ;;
     6)
     flash_zip $gapps
-    ;;
-    7)
-    echo "请将需要刷入的包放入本脚本同目录下, 并重命名为update.zip."
-    echo "按下回车键继续..."
-    read pause > /dev/null 2>&1
-    flash_zip "update.zip"
     ;;
     0)
     exit 0
