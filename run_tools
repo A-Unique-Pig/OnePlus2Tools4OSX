@@ -7,7 +7,7 @@ adb="./bin/adb"
 fastboot="./bin/fastboot"
 twrp="./package/recovery-twrp-beautify.img"
 h2os="./package/recovery-h2os.img"
-gapps="./package/gapps-5.1-arm64-2015-07-17-15-08(CM).zip"
+gapps="./package/open_gapps-arm64-5.1-pico-20151023.zip"
 supersu='./package/UPDATE-SuperSU-v2.46.zip'
 title="OnePlus2 Tools For OSX"
 
