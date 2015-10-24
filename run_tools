@@ -34,6 +34,8 @@ function show_menu {
   echo
   echo '请输入数字选择你需要的操作:'
   echo
+  echo '0.退出程序'
+  echo
   echo '1.查询解锁状态'
   echo
   echo '2.解锁'
@@ -77,6 +79,10 @@ function read_choice {
     echo "按下回车键继续..."
     read pause > /dev/null 2>&1
     flash_zip "update.zip"
+    ;;
+    0)
+    exit 0
+    ;;
     *)
     echo "请输入正确的数字进行选择"
     sleep 3
@@ -165,9 +171,9 @@ function flash_zip {
   read pause > /dev/null 2>&1
   echo "正在重启到Recovery, 请稍候..."
   $adb reboot recovery > /dev/null 2>&1
-  sleep 10
+  sleep 15
   echo "进入Recovery后, 进入[高级-ADB Sideload]选项."
-  echo "勾选[清除Dalvik缓存]及[清除Cache分区], 并滑动开启Sideload"
+  echo "勾选[清除Dalvik缓存]及[清除Cache分区], 并滑动启动Sideload"
   echo "将刷入$1包, 按回车键确认..."
   read pause > /dev/null 2>&1
   $adb sideload $1
